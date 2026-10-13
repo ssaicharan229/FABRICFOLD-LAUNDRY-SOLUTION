@@ -19,8 +19,6 @@ import { RenewPackageModal } from './components/customers/RenewPackageModal';
 import { DataImportView } from './components/import/DataImportView';
 
 const readSavedUser = (): AppUser | null => {
-  if (!import.meta.env.DEV) return null;
-
   try {
     const saved = localStorage.getItem('ffl_current_user_v3');
     if (!saved) return null;
@@ -104,9 +102,7 @@ export const AppContent: React.FC = () => {
 
   const handleLogin = (user: AppUser) => {
     setCurrentUser(user);
-    if (import.meta.env.DEV) {
-      localStorage.setItem('ffl_current_user_v3', JSON.stringify(user));
-    }
+    localStorage.setItem('ffl_current_user_v3', JSON.stringify(user));
 
     // Route user directly to their requested tab or role-specific landing interface
     const requested = getTabFromHash(user.role);

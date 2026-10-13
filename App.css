@@ -1,0 +1,50 @@
+/* FABRICFOLD LAUNDRY SOLUTION - Dedicated Design System Styles */
+
+:root {
+  --primary-teal: #0d9488;
+  --primary-teal-dark: #0f766e;
+  --accent-cyan: #06b6d4;
+  --linen-bg: #f8fafc;
+  --steam-white: #ffffff;
+}
+
+/* Badge styling for Customer IDs and Order Tokens */
+.badge-customer-id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  background-color: #f1f5f9;
+  color: #0f172a;
+  padding: 0.15rem 0.5rem;
+  border-radius: 0.375rem;
+  border: 1px solid #e2e8f0;
+}
+
+.badge-order-token {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  background-color: #ecfdf5;
+  color: #065f46;
+  padding: 0.15rem 0.5rem;
+  border-radius: 0.375rem;
+  border: 1px solid #a7f3d0;
+}
+
+.badge-complaint-id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  background-color: #fff1f2;
+  color: #9f1239;
+  padding: 0.15rem 0.5rem;
+  border-radius: 0.375rem;
+  border: 1px solid #fecdd3;
+}
+
+/* Comfortable touch targets on mobile */
+@media (max-width: 640px) {
+  button, input, select, textarea {
+    min-height: 42px;
+  }
+}

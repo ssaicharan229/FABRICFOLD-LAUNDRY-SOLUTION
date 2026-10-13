@@ -1,7 +1,7 @@
 # FABRICFOLD LAUNDRY SOLUTION — Deployment & Hosting Guide
 > **"Smart Laundry Management for Hostels"**
 
-This guide provides complete instructions to deploy **FABRICFOLD LAUNDRY SOLUTION** to reliable public hosting platforms (Vercel, Netlify, or Cloudflare Pages) so it can be accessed on mobile phones (Android & iPhone) and shared with other people securely over HTTPS.
+This guide provides complete instructions to deploy **FABRICFOLD LAUNDRY SOLUTION** to GitHub Pages, Vercel, Netlify, or Cloudflare Pages so it can be accessed on mobile phones (Android & iPhone) and shared with other people securely over HTTPS.
 
 ---
 
@@ -11,10 +11,19 @@ The codebase has already been prepared and verified for single-page application 
 
 | File | Purpose | Target Provider |
 | :--- | :--- | :--- |
+| [`.github/workflows/deploy-pages.yml`](./.github/workflows/deploy-pages.yml) | Builds the Vite app and deploys the `dist` output on pushes to `main` | **GitHub Pages** |
 | [`vercel.json`](./vercel.json) | Configures SPA route rewrites (`/(.*)` ➔ `/index.html`) | **Vercel** |
 | [`netlify.toml`](./netlify.toml) | Configures build command, `dist` publish dir, and 200 rewrite rule | **Netlify** |
 | [`public/_redirects`](./public/_redirects) | Fallback SPA rewrite rule (`/* /index.html 200`) | **Netlify / Cloudflare Pages** |
 | [`index.html`](./index.html) | Mobile viewport, touch-zoom enabled, theme color, Apple web app meta | **All Browsers** |
+
+---
+
+## GitHub Pages
+
+This project is a Vite/React application. GitHub Pages must publish the production build in `dist`; do not publish the repository source root, because browsers cannot run the unbuilt `/src/main.tsx` entry.
+
+The included GitHub Actions workflow builds the app with the repository base path `/FABRICFOLD-LAUNDRY-SOLUTION/` and deploys `dist` whenever code is pushed to `main`. In the repository, open **Settings → Pages** and set **Build and deployment → Source** to **GitHub Actions**. The workflow then publishes the site at `https://ssaicharan229.github.io/FABRICFOLD-LAUNDRY-SOLUTION/`.
 
 ---
 

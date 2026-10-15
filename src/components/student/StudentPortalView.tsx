@@ -28,17 +28,43 @@ export const StudentPortalView: React.FC<StudentPortalViewProps> = ({ currentUse
   const [activeSubTab, setActiveSubTab] = useState<'overview' | 'orders' | 'complaints' | 'notifications'>('overview');
 
   // Lookup the actual customer record
-  const customer = dataService.getCustomers().find(
+  let customer = dataService.getCustomers().find(
     c => c.id === currentUser.customer_id || 
          c.customer_id === currentUser.customer_ref_id ||
-         (currentUser.mobile && c.mobile === currentUser.mobile)
+         (currentUser.mobile && c.mobile === currentUser.mobile) ||
+         (currentUser.email && c.email?.toLowerCase() === currentUser.email.toLowerCase())
   );
+
+  // If not yet linked, auto-provision student laundry quota & customer record
+  if (!customer && currentUser.role === 'student') {
+    try {
+      customer = dataService.addCustomer({
+        name: currentUser.name || 'Student Resident',
+        mobile: currentUser.mobile || '9948445878',
+        email: currentUser.email || undefined,
+        hostel_id: 'hostel-ganga',
+        package_id: 'pkg-basic',
+        total_washes: 34,
+        used_washes: 0
+      });
+      const updatedUser = {
+        ...currentUser,
+        customer_id: customer.id,
+        customer_ref_id: customer.customer_id,
+        mobile: customer.mobile,
+        hostel_name: customer.hostel_name,
+      };
+      localStorage.setItem('ffl_current_user_v3', JSON.stringify(updatedUser));
+    } catch (e) {
+      console.warn('Student auto-provision notice:', e);
+    }
+  }
 
   if (!customer) {
     return (
       <div className="p-8 text-center bg-white rounded-3xl border border-slate-200">
         <h3 className="text-base font-bold text-slate-800">Student Profile Not Found</h3>
-        <p className="text-xs text-slate-500 mt-1">Please contact hostel laundry administration.</p>
+        <p className="text-xs text-slate-500 mt-1">Please contact hostel laundry administration to assign your student ID.</p>
       </div>
     );
   }

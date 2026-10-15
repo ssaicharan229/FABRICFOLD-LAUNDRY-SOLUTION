@@ -17,6 +17,8 @@ import { SettingsView } from './components/settings/SettingsView';
 import { CustomerProfileModal } from './components/customers/CustomerProfileModal';
 import { RenewPackageModal } from './components/customers/RenewPackageModal';
 import { DataImportView } from './components/import/DataImportView';
+import { getSupabaseClient } from './supabase/client';
+import { dataService } from './services/dataService';
 
 const readSavedUser = (): AppUser | null => {
   try {
@@ -100,6 +102,63 @@ export const AppContent: React.FC = () => {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, [currentUser]);
 
+  // Synchronize Supabase authentication state with application state
+  React.useEffect(() => {
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+
+    // Check active session on initial load
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.warn('Supabase getSession notice:', error.message);
+        return;
+      }
+      if (session?.user && !currentUser) {
+        const verifiedRole = (
+          session.user.app_metadata?.role || 
+          session.user.user_metadata?.role || 
+          'student'
+        ) as AppUser['role'];
+
+        const allCust = dataService.getCustomers();
+        const linkedCust = verifiedRole === 'student' ? allCust.find(c =>
+          c.id === session.user.id ||
+          c.id === session.user.app_metadata?.customer_id ||
+          c.customer_id === session.user.app_metadata?.customer_ref_id ||
+          (!!session.user.email && c.email?.toLowerCase() === session.user.email.toLowerCase()) ||
+          (!!session.user.phone && c.mobile.replace(/\D/g, '') === session.user.phone.replace(/\D/g, ''))
+        ) : undefined;
+
+        const authUser: AppUser = {
+          id: session.user.id,
+          name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+          email: session.user.email || '',
+          role: verifiedRole,
+          ...(linkedCust && {
+            customer_id: linkedCust.id,
+            customer_ref_id: linkedCust.customer_id,
+            mobile: linkedCust.mobile,
+            hostel_name: linkedCust.hostel_name,
+          }),
+        };
+        handleLogin(authUser);
+      }
+    });
+
+    // Listen for auth events (sign-in, token refresh, sign-out)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
+        setCurrentUser(null);
+        localStorage.removeItem('ffl_current_user_v3');
+        setActiveTab('dashboard');
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
   const handleLogin = (user: AppUser) => {
     setCurrentUser(user);
     localStorage.setItem('ffl_current_user_v3', JSON.stringify(user));
@@ -116,11 +175,20 @@ export const AppContent: React.FC = () => {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setCurrentUser(null);
     localStorage.removeItem('ffl_current_user_v3');
     setActiveTab('dashboard');
     window.history.replaceState(null, '', window.location.pathname);
+
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        await supabase.auth.signOut();
+      } catch (err) {
+        console.warn('Supabase signOut error:', err);
+      }
+    }
   };
 
   const effectiveTab = React.useMemo<ActiveTab>(() => {

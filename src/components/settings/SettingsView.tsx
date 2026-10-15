@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { dataService } from '../../services/dataService';
 import { useToast } from '../common/Toast';
 import { ConfirmDialog } from '../common/ConfirmDialog';
-import { resetSupabaseClient, isSupabaseConfigured } from '../../supabase/client';
+import { resetSupabaseClient, isSupabaseConfigured, testSupabaseConnection } from '../../supabase/client';
 import { 
   Settings, 
   Building, 
@@ -52,6 +52,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onDataReset }) => {
   const [supabaseUrl, setSupabaseUrl] = useState(() => localStorage.getItem('ffl_supabase_url') || '');
   const [supabaseKey, setSupabaseKey] = useState(() => localStorage.getItem('ffl_supabase_anon_key') || '');
   const [isSupabaseActive, setIsSupabaseActive] = useState(() => isSupabaseConfigured());
+  const [isTestingSupabase, setIsTestingSupabase] = useState(false);
+  const [testResult, setTestResult] = useState<{ connected: boolean; message: string } | null>(null);
 
   // Confirm dialog state for data reset
   const [showResetDialog, setShowResetDialog] = useState(false);
@@ -79,6 +81,33 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onDataReset }) => {
     }
   };
 
+  const handleTestConnection = async () => {
+    if (!supabaseUrl.trim() || !supabaseKey.trim()) {
+      error('Missing Credentials', 'Please enter both Supabase URL and Anon Key before testing.');
+      return;
+    }
+    setIsTestingSupabase(true);
+    setTestResult(null);
+    try {
+      const res = await testSupabaseConnection(supabaseUrl.trim(), supabaseKey.trim());
+      if (res.connected) {
+        setTestResult({
+          connected: true,
+          message: `Connection Verified! Supabase responded successfully (${res.latencyMs}ms).`,
+        });
+        success('Supabase Connected', `Successfully connected in ${res.latencyMs}ms`);
+      } else {
+        setTestResult({
+          connected: false,
+          message: res.error || 'Connection failed. Check project URL and public anon key.',
+        });
+        error('Supabase Test Failed', res.error || 'Could not connect.');
+      }
+    } finally {
+      setIsTestingSupabase(false);
+    }
+  };
+
   const handleSaveSupabase = (e: React.FormEvent) => {
     e.preventDefault();
     if (supabaseUrl && !supabaseUrl.startsWith('http')) {
@@ -88,8 +117,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onDataReset }) => {
 
     try {
       resetSupabaseClient(supabaseUrl.trim(), supabaseKey.trim());
-      setIsSupabaseActive(Boolean(supabaseUrl && supabaseKey));
-      success('Supabase Credentials Saved', 'Connection has not been tested. Operational records still use browser storage.');
+      const active = Boolean(supabaseUrl.trim() && supabaseKey.trim());
+      setIsSupabaseActive(active);
+      success(
+        'Supabase Configured',
+        active 
+          ? 'Credentials stored and Supabase client reinitialized.' 
+          : 'Credentials cleared. Local demo storage active.'
+      );
     } catch (err: any) {
       error('Configuration Error', err?.message);
     }
@@ -289,14 +324,47 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onDataReset }) => {
           </div>
 
           <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
-            isSupabaseActive
-              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+            testResult?.connected
+              ? 'bg-emerald-50 text-emerald-700 border border-emerald-300'
+              : testResult && !testResult.connected
+              ? 'bg-rose-50 text-rose-700 border border-rose-300'
+              : isSupabaseActive
+              ? 'bg-blue-50 text-blue-700 border border-blue-200'
               : 'bg-amber-50 text-amber-700 border border-amber-200'
           }`}>
-            <span className={`w-2 h-2 rounded-full ${isSupabaseActive ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-            {isSupabaseActive ? 'Credentials Configured (Connection Unverified)' : 'Running in Local Mode'}
+            <span className={`w-2 h-2 rounded-full ${
+              testResult?.connected
+                ? 'bg-emerald-500'
+                : testResult && !testResult.connected
+                ? 'bg-rose-500'
+                : isSupabaseActive
+                ? 'bg-blue-500'
+                : 'bg-amber-500'
+            }`} />
+            {testResult?.connected
+              ? 'Connection Verified ✓'
+              : testResult && !testResult.connected
+              ? 'Connection Failed'
+              : isSupabaseActive
+              ? 'Credentials Stored'
+              : 'Local Demo Storage'}
           </span>
         </div>
+
+        {testResult && (
+          <div className={`p-3 rounded-xl border text-xs font-medium flex items-center gap-2 ${
+            testResult.connected
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              : 'bg-rose-50 border-rose-200 text-rose-800'
+          }`}>
+            {testResult.connected ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+            )}
+            <span>{testResult.message}</span>
+          </div>
+        )}
 
         <div className="space-y-3 text-xs">
           <div>
@@ -326,13 +394,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onDataReset }) => {
           </div>
         </div>
 
-        <div className="pt-2 flex justify-end">
-          <button
-            type="submit"
-            className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer transition-all"
-          >
-            <Save className="w-4 h-4" /> Save Supabase Connection
-          </button>
+        <div className="pt-2 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-[11px] text-slate-400">
+            Anon key is safe for public browser use. Never use the <code>service_role</code> key.
+          </p>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleTestConnection}
+              disabled={isTestingSupabase}
+              className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl border border-slate-200 cursor-pointer transition-all disabled:opacity-50"
+            >
+              <Sparkles className="w-4 h-4 text-indigo-600" />
+              {isTestingSupabase ? 'Testing Connection...' : 'Test Connection'}
+            </button>
+
+            <button
+              type="submit"
+              className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer transition-all"
+            >
+              <Save className="w-4 h-4" /> Save Credentials
+            </button>
+          </div>
         </div>
       </form>
 
